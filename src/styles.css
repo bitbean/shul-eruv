@@ -179,6 +179,41 @@ p {
   padding: 0;
 }
 
+.shul-access form {
+  display: grid;
+  gap: 8px;
+}
+
+.shul-access label {
+  font-weight: 800;
+}
+
+.shul-access input,
+.shul-access button {
+  min-height: 38px;
+  border: 1px solid #9daaa3;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: inherit;
+}
+
+.shul-access button {
+  background: #eaf5ee;
+  color: #174a31;
+  font-weight: 800;
+}
+
+.shul-access p[role="alert"] {
+  color: #8c2b5b;
+}
+
+.shul-pin {
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  background: #693e84;
+  box-shadow: 0 1px 4px rgba(20, 26, 33, 0.4);
+}
+
 .advanced-card summary {
   display: flex;
   align-items: center;
@@ -1112,6 +1147,7 @@ body.print-prep .notice-card li::before {
 }
 
 @media print {
+  .shul-access { display: none; }
   .editor-controls, .shape-edit-handle, .leaflet-editor-guides-pane { display: none !important; }
   @page {
     size: 8.5in 11in;

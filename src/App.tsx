@@ -49,6 +49,7 @@ import roadData from "./roads.json";
 import { followRoad, moveJoinedPoint, moveLine, nearestRoadPoint, replaceLine, type Road } from "./editorGeometry";
 import { parseConfig } from "./configImport";
 import { lockMapInteractions } from "./mapDragLock";
+import HiddenShuls from "./HiddenShuls";
 
 const roads = roadData.roads as Road[];
 type EditSnapshot = { config: EruvConfig; segments: BoundarySegment[]; labels: MapLabel[]; shapes: MapShape[]; zoom: number };
@@ -1276,6 +1277,10 @@ function App() {
             {config.hotline}
           </a>
         </section>
+
+        {new URLSearchParams(window.location.search).get("show-hidden-items") === "true" && (
+          <HiddenShuls mapRef={mapRef} />
+        )}
 
         <section className="vaad-card" aria-label="Vaad ha-eruv">
           <h2>{config.vaadTitle}</h2>

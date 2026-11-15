@@ -1,8 +1,9 @@
 import { readFile, writeFile } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, loadEnv, type Plugin, type PreviewServer, type ViteDevServer } from "vite";
 import react from "@vitejs/plugin-react";
+import { handleHiddenItems } from "./api/hidden-items";
 
 const CONFIG_SAVE_ROUTE = "/api/save-config";
 const CONFIG_PATH = path.resolve(process.cwd(), "src/eruvConfig.json");
@@ -110,7 +111,22 @@ function eruvConfigSavePlugin(): Plugin {
   };
 }
 
+function hiddenItemsPlugin(): Plugin {
+  function configure(server: ViteDevServer | PreviewServer) {
+    const env = loadEnv(server.config.mode, server.config.envDir, "SHUL_MAP_");
+    server.middlewares.use("/api/hidden-items", (request, response) => {
+      void handleHiddenItems(request, response, env);
+    });
+  }
+
+  return {
+    name: "hidden-items",
+    configureServer: configure,
+    configurePreviewServer: configure,
+  };
+}
+
 export default defineConfig({
   define: { __SOURCE_CODE_URL__: JSON.stringify(sourceCodeUrl) },
-  plugins: [react(), eruvConfigSavePlugin()],
+  plugins: [react(), eruvConfigSavePlugin(), hiddenItemsPlugin()],
 });
