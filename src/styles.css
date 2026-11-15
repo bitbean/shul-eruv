@@ -393,7 +393,8 @@ p {
 }
 
 .leaflet-tile-pane {
-  filter: grayscale(var(--basemap-grayscale, 0)) brightness(0.8) contrast(1.66);
+  --print-basemap-filter: grayscale(1) brightness(0.75) contrast(2);
+  filter: brightness(0.8) contrast(1.66);
 }
 
 .leaflet-tooltip {
@@ -403,6 +404,12 @@ p {
   color: #1f2937;
   font-size: 0.82rem;
   line-height: 1.35;
+}
+
+.leaflet-tooltip.shul-label {
+  padding: 2px 5px;
+  font-size: var(--shul-label-font-size, 0.68rem);
+  line-height: 1.2;
 }
 
 .marker-label {
@@ -603,6 +610,7 @@ p {
 }
 
 body.print-prep {
+  --shul-label-font-size: 6.5pt;
   overflow: auto;
   padding: 330px 0 16px;
   background: #d6d9de;
@@ -699,15 +707,13 @@ body.print-prep .vaad-card {
   position: absolute;
   top: 1.43in;
   right: 0.37in;
-  width: 1.28in;
+  width: 1.53in;
   padding: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
   color: #222222;
   direction: rtl;
-  font-size: 9.8pt;
-  line-height: 1.25;
   text-align: right;
 }
 
@@ -721,13 +727,16 @@ body.print-prep .vaad-card h2 {
 
 body.print-prep .vaad-card ul {
   gap: 0.035in;
-  font-weight: 600;
+  font-family: "Arial Hebrew", "Noto Sans Hebrew", Arial, sans-serif;
+  font-size: 9.5pt;
+  font-weight: 500;
+  line-height: 1.35;
 }
 
 body.print-prep .map-stage {
   position: absolute;
   top: 1.25in;
-  left: 1.2in;
+  left: 0.95in;
   width: 5.05in;
   height: 7in;
   min-height: 0;
@@ -744,7 +753,7 @@ body.print-prep .map-canvas {
 }
 
 body.print-prep .leaflet-tile-pane {
-  --basemap-grayscale: 1;
+  filter: var(--print-basemap-filter);
 }
 
 body.print-prep .leaflet-overlay-pane {
@@ -1147,6 +1156,7 @@ body.print-prep .notice-card li::before {
 }
 
 @media print {
+  body { --shul-label-font-size: 6.5pt; }
   .shul-access { display: none; }
   .editor-controls, .shape-edit-handle, .leaflet-editor-guides-pane { display: none !important; }
   @page {
@@ -1271,15 +1281,13 @@ body.print-prep .notice-card li::before {
     position: absolute;
     top: 1.43in;
     right: 0.37in;
-    width: 1.28in;
+    width: 1.53in;
     padding: 0;
     border: 0;
     border-radius: 0;
     background: transparent;
     color: #222222;
     direction: rtl;
-    font-size: 9.8pt;
-    line-height: 1.25;
     text-align: right;
   }
 
@@ -1293,13 +1301,16 @@ body.print-prep .notice-card li::before {
 
   .vaad-card ul {
     gap: 0.035in;
-    font-weight: 600;
+    font-family: "Arial Hebrew", "Noto Sans Hebrew", Arial, sans-serif;
+    font-size: 9.5pt;
+    font-weight: 500;
+    line-height: 1.35;
   }
 
   .map-stage {
     position: absolute;
     top: 1.25in;
-    left: 1.2in;
+    left: 0.95in;
     width: 5.05in;
     height: 7in;
     min-height: 0;
@@ -1321,7 +1332,7 @@ body.print-prep .notice-card li::before {
   }
 
   .leaflet-tile-pane {
-    --basemap-grayscale: 1;
+    filter: var(--print-basemap-filter);
   }
 
   .leaflet-overlay-pane {

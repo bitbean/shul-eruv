@@ -61,7 +61,12 @@ export default function HiddenShuls({ mapRef }: { mapRef: RefObject<L.Map> }) {
       name.lang = "he";
       name.textContent = shul.name;
       L.marker(shul.position, { icon, interactive: false, keyboard: false })
-        .bindTooltip(name, { direction: "top", offset: [0, -6], permanent: true })
+        .bindTooltip(name, {
+          className: "shul-label",
+          direction: "top",
+          offset: [0, -6],
+          permanent: true,
+        })
         .addTo(layer);
     }
 
