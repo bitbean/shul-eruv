@@ -202,7 +202,8 @@ function App() {
   const [showBoundary, setShowBoundary] = useState(true);
   const [showMarkers, setShowMarkers] = useState(true);
   const [isPrintPreview, setIsPrintPreview] = useState(false);
-  const isEditing = isEditMode || isPrintPreview;
+  const [isPrintEditing, setIsPrintEditing] = useState(false);
+  const isEditing = isPrintPreview ? isPrintEditing : isEditMode;
   const [editableBoundarySegments, setEditableBoundarySegments] = useState(
     cloneBoundarySegments,
   );
@@ -397,13 +398,13 @@ function App() {
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !isEditing || !isMapLocked) return;
+    if (!map || !(isEditing || isPrintPreview) || !isMapLocked) return;
     map.stop();
     return lockMapInteractions([
       map.dragging, map.touchZoom, map.scrollWheelZoom,
       map.doubleClickZoom, map.boxZoom, map.keyboard,
     ]);
-  }, [isEditing, isMapLocked]);
+  }, [isEditing, isPrintPreview, isMapLocked]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -816,6 +817,7 @@ function App() {
   const openPrintPreview = useCallback(() => {
     setShowBoundary(true);
     setShowMarkers(true);
+    setIsPrintEditing(false);
     setIsPrintPreview(true);
   }, []);
 
@@ -1380,20 +1382,26 @@ function App() {
         </section>
       </main>
 
-      {isEditing ? (
+      {isEditing || isPrintPreview ? (
         <aside className={isPrintPreview ? "print-preview-controls" : "editor-controls"} aria-label={isPrintPreview ? "Print preview controls" : "Map editor"}>
           <div className="print-preview-title">
             <SlidersHorizontal size={17} aria-hidden="true" />
             {isPrintPreview ? "Print preview" : "Edit map"}
             <button type="button" className="editor-close" title="Close editor" aria-label="Close editor" onClick={() => isPrintPreview ? closePrintPreview() : setIsEditMode(false)}><X size={18} /></button>
           </div>
+          {isPrintPreview && <label className="snap-toggle">
+            <input type="checkbox" checked={isPrintEditing} onChange={event => setIsPrintEditing(event.currentTarget.checked)}/> Edit map in preview
+          </label>}
           <div className="editor-commands" data-history-version={historyVersion}>
-            <button type="button" title="Undo" aria-label="Undo" disabled={historyIndex.current <= 0} onClick={() => stepHistory(-1)}><Undo2 size={17}/></button>
-            <button type="button" title="Redo" aria-label="Redo" disabled={historyIndex.current >= historyRef.current.length - 1} onClick={() => stepHistory(1)}><Redo2 size={17}/></button>
+            {isEditing && <>
+              <button type="button" title="Undo" aria-label="Undo" disabled={historyIndex.current <= 0} onClick={() => stepHistory(-1)}><Undo2 size={17}/></button>
+              <button type="button" title="Redo" aria-label="Redo" disabled={historyIndex.current >= historyRef.current.length - 1} onClick={() => stepHistory(1)}><Redo2 size={17}/></button>
+            </>}
             <button type="button" title="Fit boundary" aria-label="Fit boundary" onClick={() => fitToBoundary(isPrintPreview)}><Crosshair size={17}/></button>
             {!isPrintPreview && <button type="button" title="Print preview" aria-label="Print preview" onClick={openPrintPreview}><Printer size={17}/></button>}
           </div>
           <label className="snap-toggle"><input type="checkbox" checked={isMapLocked} onChange={event => setIsMapLocked(event.currentTarget.checked)}/> Lock map position</label>
+          {isEditing && <>
           <div className="editor-add-tools">
             <button type="button" onClick={addTextBox}><Plus size={15}/> Text box</button>
             <button type="button" onClick={addAreaBox}><Square size={15}/> Area box</button>
@@ -1426,6 +1434,7 @@ function App() {
               <button type="button" disabled={!selectedRoad || !selectedBoundarySegment} onClick={snapLine}><Route size={15}/> Follow road</button>
             </div>
           </section>
+          </>}
           {isPrintPreview && <div className="print-zoom-control">
             <div className="print-zoom-heading">
               <label htmlFor="print-zoom-range">Map zoom</label>
@@ -1455,6 +1464,7 @@ function App() {
               onKeyUp={(event) => updatePrintZoom(event.currentTarget.value)}
             />
           </div>}
+          {isEditing && <>
           {selectedMapLabel && selectedMapLabelTypography ? (
             <section className="label-edit-card" aria-label="Selected map label editor">
               <label className="label-edit-select">
@@ -1606,6 +1616,7 @@ function App() {
               </button>
             </section>
           ) : null}
+          </>}
           <div className="print-preview-actions">
             <button
               type="button"
@@ -1618,7 +1629,7 @@ function App() {
               <RotateCcw size={16} aria-hidden="true" />
               Reset zoom
             </button>
-            <button
+            {isEditing && <><button
               type="button"
               className="secondary-action"
               onClick={resetMapLabels}
@@ -1665,6 +1676,7 @@ function App() {
                 />
               </label>
             ) : null}
+            </>}
             <button type="button" className="secondary-action" onClick={() => isPrintPreview ? closePrintPreview() : setIsEditMode(false)}>
               <X size={16} aria-hidden="true" />
               Close
