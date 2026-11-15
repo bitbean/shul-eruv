@@ -357,6 +357,10 @@ p {
   font-family: inherit;
 }
 
+.leaflet-tile-pane {
+  filter: grayscale(var(--basemap-grayscale, 0)) brightness(0.8) contrast(1.66);
+}
+
 .leaflet-tooltip {
   border: 0;
   border-radius: 8px;
@@ -705,8 +709,7 @@ body.print-prep .map-canvas {
 }
 
 body.print-prep .leaflet-tile-pane {
-  filter: grayscale(1) contrast(0.72) brightness(1.08);
-  opacity: 0.58;
+  --basemap-grayscale: 1;
 }
 
 body.print-prep .leaflet-overlay-pane {
@@ -1282,8 +1285,7 @@ body.print-prep .notice-card li::before {
   }
 
   .leaflet-tile-pane {
-    filter: grayscale(1) contrast(0.72) brightness(1.08);
-    opacity: 0.58;
+    --basemap-grayscale: 1;
   }
 
   .leaflet-overlay-pane {
