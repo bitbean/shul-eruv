@@ -715,15 +715,16 @@ body.print-prep .leaflet-overlay-pane {
 
 body.print-prep .legend-card {
   position: absolute;
-  top: 7.5in;
-  left: 1.23in;
+  top: 3.65in;
+  right: 0.37in;
+  left: auto;
   z-index: 700;
   display: grid;
   grid-template-columns: 1fr;
-  gap: 0.035in;
-  width: 3.6in;
+  gap: 0.09in;
+  width: 1.28in;
   min-height: 0;
-  padding: 0.08in 0.1in;
+  padding: 0.08in;
   border: 0.8pt solid rgba(79, 88, 84, 0.72);
   border-radius: 0;
   background: rgba(249, 248, 243, 0.9);
@@ -736,23 +737,24 @@ body.print-prep .notice-card .section-title {
 }
 
 body.print-prep .legend-row {
-  grid-template-columns: 0.48in minmax(0, 1fr);
+  grid-template-columns: 0.22in minmax(0, 1fr);
   gap: 0.06in;
   color: #1f1f1f;
-  font-size: 6.45pt;
+  font-size: 7pt;
   font-weight: 600;
-  line-height: 1;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 body.print-prep .legend-swatch {
-  width: 0.48in;
+  width: 0.22in;
   border-top-width: var(--swatch-print-width, 3pt);
 }
 
 body.print-prep .legend-marker-dot {
   width: 4px;
   height: 4px;
-  margin-left: 0.21in;
+  margin-left: 0.08in;
 }
 
 body.print-prep .notice-card {
@@ -1298,14 +1300,15 @@ body.print-prep .notice-card li::before {
 
   .legend-card {
     position: absolute;
-    top: 7.5in;
-    left: 1.23in;
+    top: 3.65in;
+    right: 0.37in;
+    left: auto;
     z-index: 700;
     display: grid;
     grid-template-columns: 1fr;
-    gap: 0.035in;
-    width: 3.6in;
-    padding: 0.08in 0.1in;
+    gap: 0.09in;
+    width: 1.28in;
+    padding: 0.08in;
     border: 0.8pt solid rgba(79, 88, 84, 0.72);
     background: rgba(249, 248, 243, 0.9);
   }
@@ -1336,23 +1339,24 @@ body.print-prep .notice-card li::before {
   }
 
   .legend-row {
-    grid-template-columns: 0.48in minmax(0, 1fr);
+    grid-template-columns: 0.22in minmax(0, 1fr);
     gap: 0.06in;
     color: #1f1f1f;
-    font-size: 6.45pt;
+    font-size: 7pt;
     font-weight: 600;
-    line-height: 1;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
   }
 
   .legend-swatch {
-    width: 0.48in;
+    width: 0.22in;
     border-top-width: var(--swatch-print-width, 3pt);
   }
 
   .legend-marker-dot {
     width: 4px;
     height: 4px;
-    margin-left: 0.21in;
+    margin-left: 0.08in;
   }
 
   .notice-card ul {

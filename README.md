@@ -15,6 +15,8 @@ Confirm current eruv status and exact boundaries with the eruv committee before 
 
 ## Run Locally
 
+Set `VITE_CARTO_BASEMAP_KEY` in `.env.local` for local use, or in Vercel's Environment Variables before deploying. Use a [CARTO Basemaps key](https://carto.com/basemaps/apikey/) restricted to the appropriate host. The key is visible in browser tile requests; don't commit it. Without a key, only the eruv overlay is shown.
+
 ```sh
 npm install
 npm run dev

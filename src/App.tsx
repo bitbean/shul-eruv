@@ -21,7 +21,6 @@ import {
   Magnet,
   Square,
   Crosshair,
-  Layers,
   MapPinned,
   Phone,
   Plus,
@@ -54,26 +53,13 @@ import { lockMapInteractions } from "./mapDragLock";
 const roads = roadData.roads as Road[];
 type EditSnapshot = { config: EruvConfig; segments: BoundarySegment[]; labels: MapLabel[]; shapes: MapShape[]; zoom: number };
 
-type BaseLayerKey = "standard" | "light";
-
-const baseLayers: Record<
-  BaseLayerKey,
-  { label: string; url: string; attribution: string }
-> = {
-  standard: {
-    label: "OSM",
-    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-  },
-  light: {
-    label: "Light",
-    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  },
+const lightBasemap = {
+  url: "https://basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png",
+  attribution:
+    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
 };
 
+const cartoBasemapKey = import.meta.env.VITE_CARTO_BASEMAP_KEY?.trim();
 const PRINT_PREP_CLASS = "print-prep";
 const printPreviewDefaults = eruvConfig.map.printPreview;
 const SAVE_CONFIG_ENDPOINT = "/api/save-config";
@@ -212,7 +198,6 @@ function App() {
   const mapRef = useRef<L.Map | null>(null);
   const overlayRef = useRef<L.FeatureGroup | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
-  const [baseLayer, setBaseLayer] = useState<BaseLayerKey>("standard");
   const [showBoundary, setShowBoundary] = useState(true);
   const [showMarkers, setShowMarkers] = useState(true);
   const [isPrintPreview, setIsPrintPreview] = useState(false);
@@ -422,21 +407,14 @@ function App() {
   useEffect(() => {
     const map = mapRef.current;
 
-    if (!map) {
-      return;
-    }
+    if (!map || !cartoBasemapKey) return;
 
-    if (tileLayerRef.current) {
-      tileLayerRef.current.remove();
-    }
-
-    const selected = baseLayers[baseLayer];
-    tileLayerRef.current = L.tileLayer(selected.url, {
-      attribution: selected.attribution,
+    tileLayerRef.current = L.tileLayer(`${lightBasemap.url}?key=${encodeURIComponent(cartoBasemapKey)}`, {
+      attribution: lightBasemap.attribution,
       maxZoom: 19,
       crossOrigin: true,
     }).addTo(map);
-  }, [baseLayer]);
+  }, []);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -1383,27 +1361,6 @@ function App() {
           </ul>
         </section>
 
-        <details className="advanced-card">
-          <summary>
-            <Layers size={17} aria-hidden="true" />
-            Advanced
-          </summary>
-          <div className="layer-card" aria-label="Basemap style">
-            <div className="section-title">Basemap</div>
-            <div className="segmented-control">
-              {(Object.keys(baseLayers) as BaseLayerKey[]).map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  aria-pressed={baseLayer === key}
-                  onClick={() => setBaseLayer(key)}
-                >
-                  {baseLayers[key].label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </details>
         <footer className="app-footer">
           <a href={sourceCodeUrl}>Source code</a>
         </footer>
