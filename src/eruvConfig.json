@@ -11,10 +11,7 @@
     "ר׳ מרדכי בורנשטיין",
     "ר׳ אברהם צבי ווייסמאן",
     "ר׳ מענדל קירביץ",
-    "ר׳ יהושע רודניצקי",
-    "ר׳ יוסף מאסקאו",
-    "ר׳ מאיר קאהנוביץ",
-    "ר׳ לייב בריישווא"
+    "ר׳ יהושע רודניצקי"
   ],
   "configNote": "Visual reconstruction of the supplied November 2026 reference photograph, not a surveyed or independently verified boundary. Handwritten names and additions require confirmation by the vaad. Coordinates are approximate; lines intentionally do not snap to streets.",
   "map": {
@@ -72,18 +69,6 @@
     "This עירוב map is to ensure that there is no חילול שבת due to unclear boundaries. For exact boundaries, please contact R' Yehoshua Rudnicki."
   ],
   "mapLabels": [
-    {
-      "id": "valley-address",
-      "label": "15 Valley",
-      "position": [
-        40.1243202,
-        -74.253179
-      ],
-      "variant": "callout",
-      "widthPx": 60,
-      "fontSizePt": 6,
-      "fontWeight": 400
-    },
     {
       "id": "bryant-citadel-open-area",
       "label": "The open area between the backyards on Bryant and Citadel is not in the עירוב.",
