@@ -455,6 +455,7 @@ p {
   height: 18px !important;
   border: 0;
   background: transparent;
+  touch-action: none;
 }
 
 .boundary-edit-handle span {
@@ -500,6 +501,7 @@ p {
   border-radius: 2px;
 }
 
+@media screen {
 .app-shell.editing {
   grid-template-columns: 330px minmax(0, 1fr);
   height: 100vh;
@@ -507,6 +509,7 @@ p {
 .app-shell.editing > .info-panel { display: none; }
 .app-shell.editing > .map-stage { grid-column: 2; height: 100vh; }
 .app-shell.editing .map-canvas { height: 100%; min-height: 0; }
+}
 .boundary-drag-target { cursor: move; touch-action: none; }
 .editor-controls {
   position: fixed;
@@ -570,7 +573,7 @@ p {
 .editor-controls .print-preview-title { position: sticky; top: -14px; z-index: 2; background: #fff; padding: 10px 0; }
 .editor-controls .print-preview-actions { padding-bottom: 12px; }
 
-@media (max-width: 700px) {
+@media screen and (max-width: 700px) {
   .app-shell.editing { display: block; height: 100dvh; }
   .app-shell.editing > .map-stage { height: 55dvh; min-height: 0; }
   .app-shell.editing .map-canvas { height: 100%; min-height: 0; }
@@ -609,11 +612,17 @@ p {
   font-size: 0.7rem;
 }
 
+@media screen {
 body.print-prep {
   --shul-label-font-size: 6.5pt;
   overflow: auto;
-  padding: 330px 0 16px;
+  padding: 0 0 16px;
   background: #d6d9de;
+}
+
+body.print-prep #root {
+  display: flex;
+  flex-direction: column;
 }
 
 body.print-prep .app-shell {
@@ -841,22 +850,20 @@ body.print-prep .notice-card li::before {
   top: 0;
   font-size: 8pt;
 }
+}
 
 .print-preview-controls {
-  position: absolute;
-  top: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 2000;
+  order: -1;
   display: grid;
-  gap: 12px;
-  width: min(768px, calc(100vw - 32px));
-  max-height: 290px;
+  gap: 8px;
+  width: min(768px, calc(100% - 24px));
+  max-height: min(290px, 65dvh);
+  margin: 12px auto;
   overflow: auto;
-  padding: 14px;
+  padding: 0 12px 10px;
   border: 1px solid rgba(24, 32, 42, 0.16);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.96);
+  background: #fff;
   color: #18202a;
   box-shadow: 0 12px 34px rgba(12, 18, 28, 0.22);
 }
@@ -869,25 +876,38 @@ body.print-prep .notice-card li::before {
   font-weight: 900;
 }
 
-.print-preview-hint {
-  margin: -4px 0 0;
-  color: #4b5565;
-  font-size: 0.8rem;
-  line-height: 1.25;
+.print-preview-controls .print-preview-title {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 8px 0;
+  border-bottom: 1px solid #e2e6e3;
+  background: #fff;
 }
 
-.print-zoom-control {
+.print-preview-controls .editor-close {
+  margin-left: 0;
+}
+
+.preview-map-controls {
   display: grid;
   gap: 8px;
 }
 
-.print-zoom-heading {
+.print-preview-controls .preview-map-controls {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 14px;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.print-zoom-control {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
   color: #344155;
-  font-size: 0.88rem;
+  font-size: 0.8rem;
   font-weight: 800;
 }
 
@@ -900,7 +920,7 @@ body.print-prep .notice-card li::before {
 }
 
 .print-zoom-value input {
-  width: 58px;
+  width: 52px;
   min-height: 30px;
   border: 1px solid rgba(29, 40, 55, 0.16);
   border-radius: 8px;
@@ -911,12 +931,20 @@ body.print-prep .notice-card li::before {
 
 .print-zoom-control input[type="range"] {
   width: 100%;
+  min-width: 0;
+  margin: 0;
   accent-color: #2f7d54;
 }
 
-.print-zoom-control input[type="number"] {
-  accent-color: auto;
-  width: 58px;
+.print-zoom-reset {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #cdd5d0;
+  border-radius: 5px;
+  background: #fafcfb;
+  color: #263244;
 }
 
 .label-edit-card,
@@ -1051,7 +1079,8 @@ body.print-prep .notice-card li::before {
   gap: 8px;
 }
 
-.print-preview-actions button {
+.print-preview-actions button,
+.print-preview-print {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1061,6 +1090,12 @@ body.print-prep .notice-card li::before {
   border-radius: 8px;
   font-size: 0.86rem;
   font-weight: 900;
+}
+
+.print-preview-print {
+  flex: none;
+  margin-left: auto;
+  padding: 0 12px;
 }
 
 .secondary-action {
@@ -1107,7 +1142,7 @@ body.print-prep .notice-card li::before {
   line-height: 1.35;
 }
 
-@media (max-width: 920px) {
+@media screen and (max-width: 920px) {
   body {
     overflow: auto;
   }
@@ -1135,7 +1170,7 @@ body.print-prep .notice-card li::before {
   }
 }
 
-@media (max-width: 520px) {
+@media screen and (max-width: 520px) {
   .info-panel {
     padding: 16px;
   }
@@ -1158,9 +1193,16 @@ body.print-prep .notice-card li::before {
 @media print {
   body { --shul-label-font-size: 6.5pt; }
   .shul-access { display: none; }
-  .editor-controls, .shape-edit-handle, .leaflet-editor-guides-pane { display: none !important; }
+  .editor-controls,
+  .print-preview-controls,
+  .leaflet-editor-guides-pane,
+  .leaflet-editor-lines-pane,
+  .leaflet-editor-handles-pane {
+    display: none !important;
+  }
+
   @page {
-    size: 8.5in 11in;
+    size: letter portrait;
     margin: 0.25in;
   }
 
@@ -1175,16 +1217,13 @@ body.print-prep .notice-card li::before {
     width: 100%;
     min-height: 0;
     height: auto;
+    margin: 0;
+    padding: 0;
+    background: #ffffff;
   }
 
   body {
-    background: #ffffff;
     overflow: visible;
-  }
-
-  body.print-prep {
-    padding: 0;
-    background: #ffffff;
   }
 
   .app-shell {
@@ -1194,6 +1233,7 @@ body.print-prep .notice-card li::before {
     height: 10.5in;
     min-height: 0;
     margin: 0 auto;
+    break-inside: avoid;
     border: 1.6pt solid #1f1f1f;
     background: #ffffff;
     box-shadow: none;
@@ -1474,11 +1514,4 @@ body.print-prep .notice-card li::before {
     outline: 0;
   }
 
-  .boundary-edit-handle {
-    display: none !important;
-  }
-
-  .print-preview-controls {
-    display: none;
-  }
 }

@@ -212,6 +212,8 @@ function App() {
   );
   const [selectedBoundaryPointIndex, setSelectedBoundaryPointIndex] =
     useState(0);
+  const [clickedBoundaryPoint, setClickedBoundaryPoint] =
+    useState<{ segment: BoundarySegment; index: number } | null>(null);
   const [editableMapLabels, setEditableMapLabels] = useState(cloneMapLabels);
   const [selectedMapLabelId, setSelectedMapLabelId] = useState(
     () => mapLabels[0]?.id ?? "",
@@ -263,6 +265,14 @@ function App() {
   );
   const selectedBoundaryPointCount =
     selectedBoundarySegment?.points.length ?? 0;
+  const selectBoundaryLine = useCallback((id: string) => {
+    setClickedBoundaryPoint(null);
+    setSelectedBoundarySegmentId(id);
+  }, []);
+
+  useEffect(() => {
+    if (!isEditing || !showBoundary) setClickedBoundaryPoint(null);
+  }, [isEditing, showBoundary]);
 
   const markJsonDirty = useCallback(() => {
     setJsonCopyStatus("Copy JSON");
@@ -321,30 +331,19 @@ function App() {
     }
   }, [selectedBoundaryPointCount, selectedBoundaryPointIndex]);
 
-  const waitForMapSettled = useCallback(() => {
-    const map = mapRef.current;
+  const waitForPrintTiles = useCallback(() => {
     const tileLayer = tileLayerRef.current;
 
-    if (!map) {
-      return Promise.resolve();
-    }
+    if (!tileLayer?.isLoading()) return Promise.resolve();
 
     return new Promise<void>((resolve) => {
-      let settled = false;
       const finish = () => {
-        if (settled) {
-          return;
-        }
-
-        settled = true;
-        map.off("moveend", finish);
-        tileLayer?.off("load", finish);
+        window.clearTimeout(timeout);
+        tileLayer.off("load", finish);
         resolve();
       };
-
-      map.once("moveend", finish);
-      tileLayer?.once("load", finish);
-      window.setTimeout(finish, 900);
+      const timeout = window.setTimeout(finish, 3000);
+      tileLayer.once("load", finish);
     });
   }, []);
 
@@ -361,10 +360,12 @@ function App() {
       zoomDelta: 0.25,
       zoomSnap: 0.1,
       zoomControl: false,
-      preferCanvas: true,
     });
     map.createPane("editor-guides");
     map.getPane("editor-guides")!.style.zIndex = "350";
+    // Keep line hit targets above labels, with vertex handles above both.
+    map.createPane("editor-lines").style.zIndex = "610";
+    map.createPane("editor-handles").style.zIndex = "620";
 
     L.control.zoom({ position: "bottomright" }).addTo(map);
     const fitInitialView = () => {
@@ -434,7 +435,9 @@ function App() {
     }
 
     const group = L.featureGroup();
-    const dragRenderer = isEditing ? L.svg({ padding: 0.5 }).addTo(map) : undefined;
+    const dragRenderer = isEditing ? L.svg({ pane: "editor-lines", padding: 0.5 }).addTo(map) : undefined;
+    const clearClickedPoint = () => setClickedBoundaryPoint(null);
+    if (isEditing) map.on("click", clearClickedPoint);
     const pathDragHandlers: PathDrag[] = [];
     let releaseMap = () => {};
     const lockMap = () => {
@@ -467,9 +470,7 @@ function App() {
           });
 
         if (isEditing) {
-          boundaryLine.on("click", () => {
-            setSelectedBoundarySegmentId(segment.id);
-          });
+          boundaryLine.on("click", () => selectBoundaryLine(segment.id));
         }
 
         boundaryLine.addTo(group);
@@ -487,6 +488,7 @@ function App() {
           segment.points.forEach((point, pointIndex) => {
             const isSelectedPoint = pointIndex === selectedBoundaryPointIndex;
             const vertexMarker = L.marker(point, {
+              pane: "editor-handles",
               title: `Boundary point ${pointIndex + 1}`,
               draggable: true,
               icon: L.divIcon({
@@ -502,23 +504,17 @@ function App() {
             });
 
             vertexMarker.on("click", () => {
-              setSelectedBoundarySegmentId(segment.id);
+              setClickedBoundaryPoint({ segment, index: pointIndex });
               setSelectedBoundaryPointIndex(pointIndex);
             });
 
             vertexMarker.on("dragstart", () => {
+              clearClickedPoint();
               lockMap();
               vertexMarker.closeTooltip();
             });
 
             vertexMarker.on("drag", () => {
-              if (snapEnabled) {
-                const position = vertexMarker.getLatLng();
-                const pixel = map.latLngToContainerPoint(position);
-                const tolerance = map.distance(position, map.containerPointToLatLng(pixel.add([16, 0])));
-                const match = nearestRoadPoint([position.lat, position.lng], selectedRoad ? [selectedRoad] : roads, tolerance);
-                if (match) vertexMarker.setLatLng(match.point);
-              }
               const position = vertexMarker.getLatLng();
               const points = segment.points.map((point, index) => index === pointIndex ? position : L.latLng(point));
               boundaryLine.setLatLngs(points);
@@ -529,11 +525,18 @@ function App() {
             vertexMarker.on("dragend", () => {
               releaseMap();
               const nextPosition = vertexMarker.getLatLng();
+              const point: LatLngTuple = [nextPosition.lat, nextPosition.lng];
+              const pixel = map.latLngToContainerPoint(nextPosition);
+              const tolerance = map.distance(nextPosition, map.containerPointToLatLng(pixel.add([16, 0])));
+              const snapped = snapEnabled
+                ? nearestRoadPoint(point, selectedRoad ? [selectedRoad] : roads, tolerance)?.point
+                : undefined;
+              const [lat, lng] = snapped ?? point;
 
               setSelectedBoundarySegmentId(segment.id);
               setSelectedBoundaryPointIndex(pointIndex);
               setEditableBoundarySegments(current => moveJoinedPoint(current, segment.id, pointIndex,
-                [roundCoordinate(nextPosition.lat), roundCoordinate(nextPosition.lng)]));
+                [roundCoordinate(lat), roundCoordinate(lng)]));
               markJsonDirty();
             });
 
@@ -543,9 +546,9 @@ function App() {
         }
 
         if (isEditing) {
-          // A continuous wide hit area makes thin and dotted boundaries easy to grab.
+          // A continuous hit area covers gaps without swallowing nearby label clicks.
           const hitLine = L.polyline(segment.points, {
-            renderer: dragRenderer, weight: Math.max(20, style.weight), opacity: 0,
+            renderer: dragRenderer, weight: Math.max(12, style.weight), opacity: 0,
             className: "boundary-drag-target", bubblingMouseEvents: false,
           }).addTo(group);
           lineHitTarget = hitLine;
@@ -553,8 +556,11 @@ function App() {
           draggable.dragging.enable();
           pathDragHandlers.push(draggable.dragging);
           hitLine.on("add", () => hitLine.getElement()?.setAttribute("aria-label", `Move line: ${segment.label}`));
-          hitLine.on("click", () => setSelectedBoundarySegmentId(segment.id));
-          hitLine.on("dragstart", lockMap);
+          hitLine.on("click", () => selectBoundaryLine(segment.id));
+          hitLine.on("dragstart", () => {
+            clearClickedPoint();
+            lockMap();
+          });
           hitLine.on("drag", () => {
             const points = hitLine.getLatLngs().flat(2) as L.LatLng[];
             boundaryLine.setLatLngs(points);
@@ -589,6 +595,7 @@ function App() {
         if (isEditing && shape.id === selectedShapeId) {
           shape.points.forEach((point, index) => {
             const handle = L.marker(point, {
+              pane: "editor-handles",
               draggable: true,
               icon: L.divIcon({ className: "shape-edit-handle", html: "<span></span>", iconSize: [12, 12], iconAnchor: [6, 6] }),
               zIndexOffset: 1100,
@@ -656,8 +663,12 @@ function App() {
         });
 
         if (isEditing) {
-          labelMarker.on("dragstart", lockMap);
+          labelMarker.on("dragstart", () => {
+            clearClickedPoint();
+            lockMap();
+          });
           labelMarker.on("click", () => {
+            clearClickedPoint();
             setSelectedMapLabelId(label.id);
           });
 
@@ -690,6 +701,7 @@ function App() {
     group.addTo(map);
     overlayRef.current = group;
     return () => {
+      map.off("click", clearClickedPoint);
       releaseMap();
       pathDragHandlers.forEach(handler => handler.disable());
       group.eachLayer(layer => {
@@ -713,6 +725,7 @@ function App() {
     markJsonDirty,
     selectedBoundarySegmentId,
     selectedBoundaryPointIndex,
+    selectBoundaryLine,
     selectedMapLabelId,
     showBoundary,
     showMarkers,
@@ -756,8 +769,9 @@ function App() {
     fitToBoundary(true, zoomPercent);
     await waitForFrames(2);
     fitToBoundary(true, zoomPercent);
-    await waitForMapSettled();
-  }, [fitToBoundary, printZoomPercent, waitForFrames, waitForMapSettled]);
+    await waitForPrintTiles();
+    await waitForFrames(2);
+  }, [fitToBoundary, printZoomPercent, waitForFrames, waitForPrintTiles]);
 
   const exitPrintPrep = useCallback(() => {
     document.body.classList.remove(PRINT_PREP_CLASS);
@@ -766,6 +780,7 @@ function App() {
 
   useEffect(() => {
     const preparePrint = () => {
+      if (document.body.classList.contains(PRINT_PREP_CLASS)) return;
       document.body.classList.add(PRINT_PREP_CLASS);
       fitToBoundary(true, printZoomPercent);
     };
@@ -980,7 +995,7 @@ function App() {
 
   const removeBoundaryPoint = useCallback(() => {
     if (!selectedBoundarySegment || selectedBoundaryPointCount <= 2) {
-      return;
+      return false;
     }
 
     const pointIndex = Math.round(
@@ -998,8 +1013,10 @@ function App() {
           : segment,
       ),
     );
+    setClickedBoundaryPoint(null);
     setSelectedBoundaryPointIndex(nextSelectedIndex);
     markJsonDirty();
+    return true;
   }, [
     markJsonDirty,
     selectedBoundaryPointCount,
@@ -1117,10 +1134,11 @@ function App() {
     }
   }, [buildUpdatedConfig, canSaveConfig]);
 
-  function stepHistory(direction: -1 | 1) {
+  const stepHistory = useCallback((direction: -1 | 1) => {
     const next = historyIndex.current + direction;
     const snapshot = historyRef.current[next];
-    if (!snapshot) return;
+    if (!snapshot) return false;
+    setClickedBoundaryPoint(null);
     restoringHistory.current = true;
     historyIndex.current = next;
     setLoadedConfig(snapshot.config);
@@ -1131,7 +1149,42 @@ function App() {
     setHistoryVersion(v => v + 1);
     markJsonDirty();
     setEditorStatus(direction < 0 ? "Undone" : "Redone");
-  }
+    return true;
+  }, [markJsonDirty]);
+
+  const deleteSelectedBoundary = useCallback(() => {
+    if (!showBoundary || !selectedBoundarySegment || editableBoundarySegments.length <= 1) return false;
+
+    setClickedBoundaryPoint(null);
+    setEditableBoundarySegments(current => current.filter(segment => segment.id !== selectedBoundarySegment.id));
+    markJsonDirty();
+    setEditorStatus(`Deleted line: ${selectedBoundarySegment.label}.`);
+    return true;
+  }, [editableBoundarySegments.length, markJsonDirty, selectedBoundarySegment, showBoundary]);
+
+  useEffect(() => {
+    if (!isEditing) return;
+
+    const handleEditorShortcut = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing || event.altKey) return;
+
+      const target = event.target;
+      if (target instanceof HTMLElement && (target.isContentEditable ||
+          target.matches("textarea, input:not([type]), input:is([type=text], [type=search], [type=number], [type=email], [type=tel], [type=url], [type=password])"))) return;
+
+      if (event.ctrlKey !== event.metaKey && event.key.toLowerCase() === "z") {
+        if (stepHistory(event.shiftKey ? 1 : -1)) event.preventDefault();
+      } else if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.repeat &&
+          (event.key === "Delete" || event.key === "Backspace") && showBoundary &&
+          clickedBoundaryPoint?.segment === selectedBoundarySegment &&
+          clickedBoundaryPoint.index === selectedBoundaryPointIndex) {
+        if (removeBoundaryPoint()) event.preventDefault();
+      }
+    };
+
+    window.addEventListener("keydown", handleEditorShortcut);
+    return () => window.removeEventListener("keydown", handleEditorShortcut);
+  }, [clickedBoundaryPoint, isEditing, removeBoundaryPoint, selectedBoundaryPointIndex, selectedBoundarySegment, showBoundary, stepHistory]);
 
   function patchLabel(patch: Partial<MapLabel>) {
     if (!selectedMapLabel) return;
@@ -1254,6 +1307,11 @@ function App() {
     setShowMarkers(true);
     await enterPrintPrep(printZoomPercent);
     window.print();
+  }
+
+  function resetPrintZoom() {
+    setPrintZoomPercent(printPreviewDefaults.defaultZoomPercent);
+    markJsonDirty();
   }
 
   return (
@@ -1387,20 +1445,52 @@ function App() {
           <div className="print-preview-title">
             <SlidersHorizontal size={17} aria-hidden="true" />
             {isPrintPreview ? "Print preview" : "Edit map"}
-            <button type="button" className="editor-close" title="Close editor" aria-label="Close editor" onClick={() => isPrintPreview ? closePrintPreview() : setIsEditMode(false)}><X size={18} /></button>
+            {isPrintPreview && <button type="button" className="primary-action print-preview-print" onClick={handlePrint}>
+              <Printer size={16} aria-hidden="true" /> Print
+            </button>}
+            <button type="button" className="editor-close" title={isPrintPreview ? "Close print preview" : "Close editor"} aria-label={isPrintPreview ? "Close print preview" : "Close editor"} onClick={() => isPrintPreview ? closePrintPreview() : setIsEditMode(false)}><X size={18} /></button>
           </div>
+          <div className="preview-map-controls">
           {isPrintPreview && <label className="snap-toggle">
             <input type="checkbox" checked={isPrintEditing} onChange={event => setIsPrintEditing(event.currentTarget.checked)}/> Edit map in preview
           </label>}
           <div className="editor-commands" data-history-version={historyVersion}>
             {isEditing && <>
-              <button type="button" title="Undo" aria-label="Undo" disabled={historyIndex.current <= 0} onClick={() => stepHistory(-1)}><Undo2 size={17}/></button>
-              <button type="button" title="Redo" aria-label="Redo" disabled={historyIndex.current >= historyRef.current.length - 1} onClick={() => stepHistory(1)}><Redo2 size={17}/></button>
+              <button type="button" title="Undo (Ctrl+Z / Cmd+Z)" aria-label="Undo" aria-keyshortcuts="Control+Z Meta+Z" disabled={historyIndex.current <= 0} onClick={() => stepHistory(-1)}><Undo2 size={17}/></button>
+              <button type="button" title="Redo (Ctrl+Shift+Z / Cmd+Shift+Z)" aria-label="Redo" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" disabled={historyIndex.current >= historyRef.current.length - 1} onClick={() => stepHistory(1)}><Redo2 size={17}/></button>
             </>}
             <button type="button" title="Fit boundary" aria-label="Fit boundary" onClick={() => fitToBoundary(isPrintPreview)}><Crosshair size={17}/></button>
             {!isPrintPreview && <button type="button" title="Print preview" aria-label="Print preview" onClick={openPrintPreview}><Printer size={17}/></button>}
           </div>
           <label className="snap-toggle"><input type="checkbox" checked={isMapLocked} onChange={event => setIsMapLocked(event.currentTarget.checked)}/> Lock map position</label>
+          </div>
+          {isPrintPreview && <div className="print-zoom-control">
+            <label htmlFor="print-zoom-range">Map zoom</label>
+            <input
+              id="print-zoom-range"
+              type="range"
+              min={printPreviewDefaults.minZoomPercent}
+              max={printPreviewDefaults.maxZoomPercent}
+              step={printPreviewDefaults.stepPercent}
+              value={printZoomPercent}
+              onChange={(event) => updatePrintZoom(event.currentTarget.value)}
+            />
+            <label className="print-zoom-value">
+              <input
+                type="number"
+                aria-label="Map zoom percent"
+                min={printPreviewDefaults.minZoomPercent}
+                max={printPreviewDefaults.maxZoomPercent}
+                step={printPreviewDefaults.stepPercent}
+                value={printZoomPercent}
+                onChange={(event) => updatePrintZoom(event.currentTarget.value)}
+              />
+              <span aria-hidden="true">%</span>
+            </label>
+            <button type="button" className="print-zoom-reset" title="Reset zoom" aria-label="Reset zoom" onClick={resetPrintZoom}>
+              <RotateCcw size={16} aria-hidden="true" />
+            </button>
+          </div>}
           {isEditing && <>
           <div className="editor-add-tools">
             <button type="button" onClick={addTextBox}><Plus size={15}/> Text box</button>
@@ -1422,7 +1512,7 @@ function App() {
             }}/>
           </label>
           <section className="road-edit-tools" aria-label="Road snapping">
-            <label className="snap-toggle"><input type="checkbox" checked={snapEnabled} onChange={event => setSnapEnabled(event.currentTarget.checked)}/><Magnet size={16}/> Snap while dragging</label>
+            <label className="snap-toggle"><input type="checkbox" checked={snapEnabled} onChange={event => setSnapEnabled(event.currentTarget.checked)}/><Magnet size={16}/> Snap points on drop</label>
             <label className="label-edit-select"><span>Snap road</span>
               <select value={selectedRoadId} onChange={event => setSelectedRoadId(event.currentTarget.value)}>
                 <option value="">Any nearby road</option>
@@ -1435,35 +1525,6 @@ function App() {
             </div>
           </section>
           </>}
-          {isPrintPreview && <div className="print-zoom-control">
-            <div className="print-zoom-heading">
-              <label htmlFor="print-zoom-range">Map zoom</label>
-              <label className="print-zoom-value" htmlFor="print-zoom-number">
-                <input
-                  id="print-zoom-number"
-                  type="number"
-                  min={printPreviewDefaults.minZoomPercent}
-                  max={printPreviewDefaults.maxZoomPercent}
-                  step={printPreviewDefaults.stepPercent}
-                  value={printZoomPercent}
-                  onChange={(event) => updatePrintZoom(event.currentTarget.value)}
-                />
-                <span>%</span>
-              </label>
-            </div>
-            <input
-              id="print-zoom-range"
-              type="range"
-              min={printPreviewDefaults.minZoomPercent}
-              max={printPreviewDefaults.maxZoomPercent}
-              step={printPreviewDefaults.stepPercent}
-              value={printZoomPercent}
-              aria-label="Map zoom percent"
-              onChange={(event) => updatePrintZoom(event.currentTarget.value)}
-              onInput={(event) => updatePrintZoom(event.currentTarget.value)}
-              onKeyUp={(event) => updatePrintZoom(event.currentTarget.value)}
-            />
-          </div>}
           {isEditing && <>
           {selectedMapLabel && selectedMapLabelTypography ? (
             <section className="label-edit-card" aria-label="Selected map label editor">
@@ -1547,7 +1608,7 @@ function App() {
                 <select
                   value={selectedBoundarySegment.id}
                   onChange={(event) =>
-                    setSelectedBoundarySegmentId(event.currentTarget.value)
+                    selectBoundaryLine(event.currentTarget.value)
                   }
                 >
                   {editableBoundarySegments.map((segment) => (
@@ -1579,7 +1640,10 @@ function App() {
                 </select>
               </label>
               <div className="boundary-point-tools">
-                <label className="label-edit-select"><span>Point number</span><input type="number" min={1} max={selectedBoundaryPointCount} value={selectedBoundaryPointIndex + 1} onChange={event => setSelectedBoundaryPointIndex(Math.round(clampNumber(Number(event.currentTarget.value) - 1, 0, selectedBoundaryPointCount - 1)))}/></label>
+                <label className="label-edit-select"><span>Point number</span><input type="number" min={1} max={selectedBoundaryPointCount} value={selectedBoundaryPointIndex + 1} onChange={event => {
+                  setClickedBoundaryPoint(null);
+                  setSelectedBoundaryPointIndex(Math.round(clampNumber(Number(event.currentTarget.value) - 1, 0, selectedBoundaryPointCount - 1)));
+                }}/></label>
                 <span>
                   Point{" "}
                   {selectedBoundaryPointCount > 0
@@ -1594,17 +1658,19 @@ function App() {
                   </button>
                   <button
                     type="button"
+                    aria-keyshortcuts="Delete Backspace"
+                    title="Remove point (Delete after selecting a handle)"
                     disabled={selectedBoundaryPointCount <= 2}
                     onClick={removeBoundaryPoint}
                   >
                     <Trash2 size={15} aria-hidden="true" />
-                    Remove
+                    Remove point
                   </button>
                 </div>
               </div>
               <div className="editor-files">
                 <button type="button" disabled={selectedBoundaryPointIndex < 1 || selectedBoundaryPointIndex >= selectedBoundaryPointCount - 1} onClick={splitLine}><Route size={15}/> Split at point</button>
-                <button type="button" disabled={editableBoundarySegments.length <= 1} onClick={() => {setEditableBoundarySegments(current => current.filter(s => s.id !== selectedBoundarySegment.id)); markJsonDirty();}}><Trash2 size={15}/> Delete line</button>
+                <button type="button" disabled={!showBoundary || editableBoundarySegments.length <= 1} onClick={deleteSelectedBoundary}><Trash2 size={15}/> Delete line</button>
               </div>
               <button
                 type="button"
@@ -1617,19 +1683,16 @@ function App() {
             </section>
           ) : null}
           </>}
-          <div className="print-preview-actions">
-            <button
+          {isEditing && <div className="print-preview-actions">
+            {!isPrintPreview && <button
               type="button"
               className="secondary-action"
-              onClick={() => {
-                setPrintZoomPercent(printPreviewDefaults.defaultZoomPercent);
-                markJsonDirty();
-              }}
+              onClick={resetPrintZoom}
             >
               <RotateCcw size={16} aria-hidden="true" />
               Reset zoom
-            </button>
-            {isEditing && <><button
+            </button>}
+            <button
               type="button"
               className="secondary-action"
               onClick={resetMapLabels}
@@ -1676,16 +1739,15 @@ function App() {
                 />
               </label>
             ) : null}
-            </>}
-            <button type="button" className="secondary-action" onClick={() => isPrintPreview ? closePrintPreview() : setIsEditMode(false)}>
+            {!isPrintPreview && <><button type="button" className="secondary-action" onClick={() => setIsEditMode(false)}>
               <X size={16} aria-hidden="true" />
               Close
             </button>
-            <button type="button" className="primary-action" onClick={isPrintPreview ? handlePrint : openPrintPreview}>
+            <button type="button" className="primary-action" onClick={openPrintPreview}>
               <Printer size={16} aria-hidden="true" />
-              {isPrintPreview ? "Print" : "Print preview"}
-            </button>
-          </div>
+              Print preview
+            </button></>}
+          </div>}
         </aside>
       ) : null}
     </>
